@@ -11,25 +11,18 @@ import (
 	"github.com/derailed/tview"
 )
 
-// LogoSmall K9s small log.
+// LogoSmall k9ish small logo: K9 in ASCII art followed by lowercase "ish".
 var LogoSmall = []string{
-	` ____  __ ________       `,
-	`|    |/  /   __   \______`,
-	`|       /\____    /  ___/`,
-	`|    \   \  /    /\___  \`,
-	`|____|\__ \/____//____  /`,
-	`         \/           \/ `,
+	` ____  __ ________`,
+	`|    |/  /   __   \`,
+	`|       /\____    /`,
+	`|    \   \  /    /`,
+	`|____|\__ \/____/`,
+	`         \/ish`,
 }
 
-// LogoBig K9s big logo for splash page.
-var LogoBig = []string{
-	` ____  __ ________        _______  ____     ___ `,
-	`|    |/  /   __   \______/   ___ \|    |   |   |`,
-	`|       /\____    /  ___/    \  \/|    |   |   |`,
-	`|    \   \  /    /\___  \     \___|    |___|   |`,
-	`|____|\__ \/____//____  /\______  /_______ \___|`,
-	`         \/           \/        \/        \/    `,
-}
+// LogoBig k9ish splash logo (same art as LogoSmall).
+var LogoBig = LogoSmall
 
 // Splash represents a splash screen.
 type Splash struct {
