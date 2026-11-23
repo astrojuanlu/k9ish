@@ -13,6 +13,7 @@ Not yet supported / removed compared to K9s:
 - plugins (a content-interface mechanism is planned)
 - native clipboard helpers — OSC52 terminal clipboard only
 - kubeconfig/log/config paths outside `~/.kube` and the snap's own dirs
+- Windows builds — Linux and macOS only
 
 For everything else (usage, configuration, key bindings, plugins for
 non-snap builds), see the [K9s README](https://github.com/derailed/k9s/blob/master/README.md).

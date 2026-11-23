@@ -54,4 +54,7 @@ parts:
       install -D "$SNAPCRAFT_PART_BUILD/execs/k9ish" "$SNAPCRAFT_PART_INSTALL/bin/k9ish"
       "$SNAPCRAFT_PART_INSTALL/bin/k9ish" completion bash > "$SNAPCRAFT_PART_INSTALL/k9ish-completion.bash"
     build-packages: [build-essential, git]
+    # Minimal stage runtime lacks terminfo tooling; stage infocmp so tcell's
+    # dynamic terminfo fallback works for terminals outside the bundled db.
+    stage-packages: [ncurses-bin]
     build-snaps: [go]
