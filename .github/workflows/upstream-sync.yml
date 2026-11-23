@@ -1,9 +1,15 @@
 # Daily check for new commits on derailed/k9s@master. When upstream has moved
-# ahead of main, the tip of upstream/master is force-pushed to an
-# `upstream-sync` branch and a pull request against main is opened (or
+# ahead of main, an `upstream-sync` branch is force-updated to the tip of
+# upstream/master plus a commit that restores the fork's own
+# .github/workflows, and a pull request against main is opened (or
 # refreshed). The PR is always created: GitHub computes mergeability, so
 # clean syncs merge as-is and conflicted syncs show the standard
 # "resolve conflicts" banner for manual resolution.
+#
+# The workflow reset exists because the default GITHUB_TOKEN is a GitHub App
+# that is never allowed to create or update workflow files, so upstream's CI
+# definitions cannot be pushed with it — and keeping the fork's own
+# definitions on the branch also stops upstream CI from entering the fork.
 #
 # NOTE: scheduled workflows only run from the default branch; merge this file
 # into main (or cherry-pick it) for the cron trigger to take effect.
@@ -62,13 +68,26 @@ jobs:
           UPSTREAM_COUNT: ${{ steps.check.outputs.count }}
           UPSTREAM_HEAD: ${{ steps.check.outputs.head }}
         run: |
+          # If this push is ever rejected for touching workflow files (e.g.
+          # after changing the fork's own workflows on main), reseed the branch
+          # once with user credentials and the bot takes over again:
+          #   git switch -C upstream-sync upstream/master
+          #   rm -rf .github/workflows && git checkout main -- .github/workflows
+          #   git add -A .github/workflows
+          #   git commit --allow-empty -m "chore(sync): keep fork workflows"
+          #   git push --force origin upstream-sync
+          git switch -C upstream-sync upstream/master
+          rm -rf .github/workflows
+          git checkout main -- .github/workflows
+          git add -A .github/workflows
+          git commit --allow-empty -m "chore(sync): keep fork workflows on the sync branch"
           gh auth setup-git
-          git push --force origin upstream/master:refs/heads/upstream-sync
+          git push --force origin upstream-sync:refs/heads/upstream-sync
           title="Sync upstream/master@${UPSTREAM_HEAD}"
           {
             echo "Brings \`derailed/k9s@master\` \`${UPSTREAM_HEAD}\` (\`${UPSTREAM_COUNT}\` new commits since the last sync) into this fork."
             echo
-            echo "Automated branch: always the tip of upstream/master, force-updated on every sync run."
+            echo "The \`upstream-sync\` branch is the tip of upstream/master plus a commit that keeps the fork's GitHub workflows in place; it is force-updated on every sync run."
           } >pr-body.md
           gh pr create --base main --head upstream-sync --title "$title" --body-file pr-body.md ||
             gh pr edit upstream-sync --title "$title" --body-file pr-body.md
