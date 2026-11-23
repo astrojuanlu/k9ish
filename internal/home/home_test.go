@@ -75,10 +75,10 @@ func TestDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.hint != "" {
-				t.Setenv(realHomeEnvVar, tt.hint)
-			}
-			// An empty envHome clears HOME, simulating it being unset.
+			// Control both sources explicitly: an empty value clears the
+			// variable, simulating it being unset (execution environments
+			// such as build sandboxes may export either of them globally).
+			t.Setenv(realHomeEnvVar, tt.hint)
 			t.Setenv("HOME", tt.envHome)
 			withFakeUser(t, tt.user)
 
