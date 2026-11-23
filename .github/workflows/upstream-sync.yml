@@ -10,6 +10,8 @@
 # that is never allowed to create or update workflow files, so upstream's CI
 # definitions cannot be pushed with it — and keeping the fork's own
 # definitions on the branch also stops upstream CI from entering the fork.
+# Upstream commits that do touch .github/workflows are listed in the PR body
+# for manual porting.
 #
 # NOTE: scheduled workflows only run from the default branch; merge this file
 # into main (or cherry-pick it) for the cron trigger to take effect.
@@ -89,6 +91,17 @@ jobs:
             echo
             echo "The \`upstream-sync\` branch is the tip of upstream/master plus a commit that keeps the fork's GitHub workflows in place; it is force-updated on every sync run."
           } >pr-body.md
+          wf_commits="$(git log --format='- %h %s' main..upstream/master -- .github/workflows)"
+          if [ -n "$wf_commits" ]; then
+            {
+              echo
+              echo "### Upstream workflow changes (not applied by this bot)"
+              echo
+              echo "Upstream also touched \`.github/workflows\` in this range. Upstream workflow files are intentionally **not** applied — the fork keeps its own CI. Review and port anything relevant by hand:"
+              echo
+              echo "$wf_commits"
+            } >>pr-body.md
+          fi
           if gh pr view upstream-sync --repo "$GITHUB_REPOSITORY" --json url >/dev/null 2>&1; then
             gh pr edit upstream-sync --repo "$GITHUB_REPOSITORY" --title "$title" --body-file pr-body.md
           else
