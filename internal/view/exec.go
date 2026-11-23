@@ -53,48 +53,6 @@ func (s shellOpts) String() string {
 	return fmt.Sprintf("%s %s", s.binary, strings.Join(s.args, " "))
 }
 
-func runK(a *App, opts *shellOpts) error {
-	bin, err := exec.LookPath("kubectl")
-	if errors.Is(err, exec.ErrDot) {
-		return fmt.Errorf("kubectl command must not be in the current working directory: %w", err)
-	}
-	if err != nil {
-		return fmt.Errorf("kubectl command is not in your path: %w", err)
-	}
-	args := []string{opts.args[0]}
-	if u, err := a.Conn().Config().ImpersonateUser(); err == nil {
-		args = append(args, "--as", u)
-	}
-	if g, err := a.Conn().Config().ImpersonateGroups(); err == nil {
-		args = append(args, "--as-group", g)
-	}
-	if isInsecure := a.Conn().Config().Flags().Insecure; isInsecure != nil && *isInsecure {
-		args = append(args, "--insecure-skip-tls-verify")
-	}
-	args = append(args, "--context", a.Config.K9s.ActiveContextName())
-	if cfg := a.Conn().Config().Flags().KubeConfig; cfg != nil && *cfg != "" {
-		args = append(args, "--kubeconfig", *cfg)
-	}
-	if len(args) > 0 {
-		opts.args = append(args, opts.args[1:]...)
-	}
-	opts.binary = bin
-
-	suspended, errChan, stChan := run(a, opts)
-	if !suspended {
-		return fmt.Errorf("unable to run command")
-	}
-	for v := range stChan {
-		slog.Debug("stdout", slogs.Line, v)
-	}
-	var errs error
-	for e := range errChan {
-		errs = errors.Join(errs, e)
-	}
-
-	return errs
-}
-
 func run(a *App, opts *shellOpts) (ok bool, errC chan error, outC chan string) {
 	errChan := make(chan error, 1)
 	statusChan := make(chan string, 1)
@@ -181,55 +139,6 @@ func execute(opts *shellOpts, statusChan chan<- string) error {
 	}
 
 	return nil
-}
-
-func runKu(ctx context.Context, a *App, opts *shellOpts) (string, error) {
-	bin, err := exec.LookPath("kubectl")
-	if errors.Is(err, exec.ErrDot) {
-		slog.Error("Kubectl exec can not reside in current working directory", slogs.Error, err)
-		return "", err
-	}
-	if err != nil {
-		slog.Error("Kubectl exec not found", slogs.Error, err)
-		return "", err
-	}
-	var args []string
-	if u, err := a.Conn().Config().ImpersonateUser(); err == nil {
-		args = append(args, "--as", u)
-	}
-	if g, err := a.Conn().Config().ImpersonateGroups(); err == nil {
-		args = append(args, "--as-group", g)
-	}
-	args = append(args, "--context", a.Config.K9s.ActiveContextName())
-	if cfg := a.Conn().Config().Flags().KubeConfig; cfg != nil && *cfg != "" {
-		args = append(args, "--kubeconfig", *cfg)
-	}
-	if len(args) > 0 {
-		opts.args = append(args, opts.args...)
-	}
-	opts.binary, opts.background = bin, false
-
-	return oneShoot(ctx, opts)
-}
-
-func oneShoot(ctx context.Context, opts *shellOpts) (string, error) {
-	if opts.clear {
-		clearScreen()
-	}
-
-	slog.Debug("Executing command",
-		slogs.Bin, opts.binary,
-		slogs.Args, strings.Join(opts.args, " "),
-	)
-	cmd := exec.CommandContext(ctx, opts.binary, opts.args...)
-
-	var err error
-	buff := bytes.NewBufferString("")
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, buff, buff
-	_, _ = cmd.Stdout.Write([]byte(opts.banner))
-	err = cmd.Run()
-
-	return strings.Trim(buff.String(), "\n"), err
 }
 
 func clearScreen() {

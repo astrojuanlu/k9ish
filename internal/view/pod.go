@@ -7,10 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
-	"os"
-	"strings"
 
 	"github.com/derailed/k9s/internal"
 	"github.com/derailed/k9s/internal/client"
@@ -31,14 +28,11 @@ import (
 )
 
 const (
-	windowsOS        = "windows"
-	osSelector       = "kubernetes.io/os"
-	osBetaSelector   = "beta." + osSelector
-	trUpload         = "Upload"
-	trDownload       = "Download"
-	pfIndicator      = "[orange::b]Ⓕ"
-	defaultTxRetries = 999
-	magicPrompt      = "Yes Please!"
+	windowsOS      = "windows"
+	osSelector     = "kubernetes.io/os"
+	osBetaSelector = "beta." + osSelector
+	pfIndicator    = "[orange::b]Ⓕ"
+	magicPrompt    = "Yes Please!"
 )
 
 // Pod represents a pod viewer.
@@ -101,13 +95,6 @@ func (p *Pod) bindDangerousKeys(aa *ui.KeyActions) {
 		ui.KeyA: ui.NewKeyActionWithOpts(
 			"Attach",
 			p.attachCmd,
-			ui.ActionOpts{
-				Visible:   true,
-				Dangerous: true,
-			}),
-		ui.KeyT: ui.NewKeyActionWithOpts(
-			"Transfer",
-			p.transferCmd,
 			ui.ActionOpts{
 				Visible:   true,
 				Dangerous: true,
@@ -278,75 +265,6 @@ func (p *Pod) sanitizeCmd(*tcell.EventKey) *tcell.EventKey {
 		p.App().Flash().Infof("Sanitized %d %s", total, p.GVR())
 		p.Refresh()
 	}, func() {})
-
-	return nil
-}
-
-func (p *Pod) transferCmd(*tcell.EventKey) *tcell.EventKey {
-	path := p.GetTable().GetSelectedItem()
-	if path == "" {
-		return nil
-	}
-
-	ns, n := client.Namespaced(path)
-	ack := func(args dialog.TransferArgs) bool {
-		local := args.To
-		if !args.Download {
-			local = args.From
-		}
-		if _, err := os.Stat(local); !args.Download && errors.Is(err, fs.ErrNotExist) {
-			p.App().Flash().Err(err)
-			return false
-		}
-
-		opts := make([]string, 0, 10)
-		opts = append(opts,
-			"cp",
-			strings.TrimSpace(args.From),
-			strings.TrimSpace(args.To),
-			fmt.Sprintf("--no-preserve=%t", args.NoPreserve),
-			fmt.Sprintf("--retries=%d", args.Retries),
-		)
-		if args.CO != "" {
-			opts = append(opts, "-c="+args.CO)
-		}
-		opts = append(opts, fmt.Sprintf("--retries=%d", args.Retries))
-
-		cliOpts := shellOpts{
-			background: true,
-			args:       opts,
-		}
-		op := trUpload
-		if args.Download {
-			op = trDownload
-		}
-
-		fqn := path + ":" + args.CO
-		if err := runK(p.App(), &cliOpts); err != nil {
-			p.App().cowCmd(err.Error())
-		} else {
-			p.App().Flash().Infof("%s successful on %s!", op, fqn)
-		}
-		return true
-	}
-
-	pod, err := fetchPod(p.App().factory, path)
-	if err != nil {
-		p.App().Flash().Err(err)
-		return nil
-	}
-
-	opts := dialog.TransferDialogOpts{
-		Title:      "Transfer",
-		Containers: fetchContainers(&pod.ObjectMeta, &pod.Spec, false),
-		Message:    "Download Files",
-		Pod:        fmt.Sprintf("%s/%s:", ns, n),
-		Ack:        ack,
-		Retries:    defaultTxRetries,
-		Cancel:     func() {},
-	}
-	d := p.App().Styles.Dialog()
-	dialog.ShowUploads(&d, p.App().Content.Pages, &opts)
 
 	return nil
 }
