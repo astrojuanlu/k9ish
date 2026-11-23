@@ -121,13 +121,6 @@ func (x *Xray) ExtraHints() map[string]string {
 func (*Xray) SetInstance(string) {}
 
 func (x *Xray) bindDangerousKeys(aa *ui.KeyActions) {
-	if client.Can(x.meta.Verbs, "edit") {
-		aa.Add(ui.KeyE, ui.NewKeyActionWithOpts("Edit", x.editCmd,
-			ui.ActionOpts{
-				Visible:   true,
-				Dangerous: true,
-			}))
-	}
 	if client.Can(x.meta.Verbs, "delete") {
 		aa.Add(tcell.KeyCtrlD, ui.NewKeyActionWithOpts("Delete", x.deleteCmd,
 			ui.ActionOpts{
@@ -453,34 +446,6 @@ func (x *Xray) describe(gvr *client.GVR, path string) {
 	if err := x.app.inject(details, false); err != nil {
 		x.app.Flash().Err(err)
 	}
-}
-
-func (x *Xray) editCmd(evt *tcell.EventKey) *tcell.EventKey {
-	spec := x.selectedSpec()
-	if spec == nil {
-		return evt
-	}
-
-	x.Stop()
-	defer x.Start()
-	{
-		ns, n := client.Namespaced(spec.Path())
-		args := make([]string, 0, 10)
-		args = append(args,
-			"edit",
-			spec.GVR().R(),
-			"-n", ns,
-			"--context", x.app.Config.K9s.ActiveContextName(),
-		)
-		if cfg := x.app.Conn().Config().Flags().KubeConfig; cfg != nil && *cfg != "" {
-			args = append(args, "--kubeconfig", *cfg)
-		}
-		if err := runK(x.app, &shellOpts{args: append(args, n)}); err != nil {
-			x.app.Flash().Errf("Edit exec failed: %s", err)
-		}
-	}
-
-	return evt
 }
 
 func (x *Xray) activateCmd(evt *tcell.EventKey) *tcell.EventKey {

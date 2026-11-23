@@ -24,33 +24,33 @@ func TestInitLogLoc(t *testing.T) {
 		e   string
 	}{
 		"log-env": {
-			dir: "/tmp/test/k9s/logs",
-			e:   "/tmp/test/k9s/logs/k9s.log",
+			dir: "/tmp/test/k9ish/logs",
+			e:   "/tmp/test/k9ish/logs/k9ish.log",
 		},
 		"xdg-env": {
 			dir: "/tmp/test/xdg-state",
-			e:   "/tmp/test/xdg-state/k9s/k9s.log",
+			e:   "/tmp/test/xdg-state/k9ish/k9ish.log",
 		},
 		"cfg-env": {
-			dir: "/tmp/test/k9s-test",
-			e:   filepath.Join(tmp, "k9s.log"),
+			dir: "/tmp/test/k9ish-test",
+			e:   filepath.Join(tmp, "k9ish.log"),
 		},
 	}
 
 	for k := range uu {
 		u := uu[k]
 		t.Run(k, func(t *testing.T) {
-			require.NoError(t, os.Unsetenv(config.K9sEnvLogsDir))
+			require.NoError(t, os.Unsetenv(config.EnvLogsDir))
 			require.NoError(t, os.Unsetenv("XDG_STATE_HOME"))
-			require.NoError(t, os.Unsetenv(config.K9sEnvConfigDir))
+			require.NoError(t, os.Unsetenv(config.EnvConfigDir))
 			switch k {
 			case "log-env":
-				require.NoError(t, os.Setenv(config.K9sEnvLogsDir, u.dir))
+				require.NoError(t, os.Setenv(config.EnvLogsDir, u.dir))
 			case "xdg-env":
 				require.NoError(t, os.Setenv("XDG_STATE_HOME", u.dir))
 				xdg.Reload()
 			case "cfg-env":
-				require.NoError(t, os.Setenv(config.K9sEnvConfigDir, u.dir))
+				require.NoError(t, os.Setenv(config.EnvConfigDir, u.dir))
 			}
 			err := config.InitLogLoc()
 			require.NoError(t, err)
@@ -61,7 +61,7 @@ func TestInitLogLoc(t *testing.T) {
 }
 
 func TestEnsureBenchmarkCfg(t *testing.T) {
-	require.NoError(t, os.Setenv(config.K9sEnvConfigDir, "/tmp/test-config"))
+	require.NoError(t, os.Setenv(config.EnvConfigDir, "/tmp/test-config"))
 	require.NoError(t, config.InitLocs())
 	defer require.NoError(t, os.RemoveAll("/tmp/test-config"))
 

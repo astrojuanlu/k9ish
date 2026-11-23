@@ -157,9 +157,6 @@ func (v *LiveView) bindKeys() {
 		tcell.KeyDelete: ui.NewSharedKeyAction("Erase", v.eraseCmd, false),
 	})
 
-	if !v.app.Config.IsReadOnly() {
-		v.actions.Add(ui.KeyE, ui.NewKeyAction("Edit", v.editCmd, true))
-	}
 	if v.title == yamlAction {
 		v.actions.Add(ui.KeyM, ui.NewKeyAction("Toggle ManagedFields", v.toggleManagedCmd, true))
 	}
@@ -176,20 +173,6 @@ func (v *LiveView) toggleEncodedDecodedCmd(evt *tcell.EventKey) *tcell.EventKey 
 
 	m.Toggle()
 	v.Start()
-	return nil
-}
-
-func (v *LiveView) editCmd(evt *tcell.EventKey) *tcell.EventKey {
-	path := v.model.GetPath()
-	if path == "" {
-		return evt
-	}
-	v.Stop()
-	defer v.Start()
-	if err := editRes(v.app, v.model.GVR(), path); err != nil {
-		v.app.Flash().Err(err)
-	}
-
 	return nil
 }
 

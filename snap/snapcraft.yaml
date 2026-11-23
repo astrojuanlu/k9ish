@@ -1,34 +1,60 @@
-name: k9s
-base: core22
-version: 'v0.50.18'
-summary: K9s is a CLI to view and manage your Kubernetes clusters.
+name: k9ish
+base: core26
+adopt-info: k9ish
+summary: A fork of k9s tuned for strict-confinement snap distribution
 description: |
-  K9s is a CLI to view and manage your Kubernetes clusters. By leveraging a terminal UI, you can easily traverse Kubernetes resources and view the state of your clusters in a single powerful session.
+  k9ish is a fork of K9s — the same terminal UI to browse and manage
+  Kubernetes clusters, modified so it can be packaged and distributed as a
+  strict-confinement snap and to talk to clusters exclusively through the
+  Kubernetes API (no bundled kubectl).
+
+  Compared to K9s, resource/manifest editing, `kubectl cp` file transfers,
+  apply/delete of local manifests from the :dir view, plugins and native
+  clipboard helpers are not available.
 
 grade: stable
-confinement: classic
-
-architectures:
-  - amd64
-  - arm64
-  - armhf
-  - i386
+confinement: strict
+platforms:
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+  arm64:
+    build-on: [arm64]
+    build-for: [arm64]
+  armhf:
+    build-on: [armhf]
+    build-for: [armhf]
 
 apps:
-  k9s:
-    command: bin/k9s
+  k9ish:
+    command: bin/k9ish
+    completer: k9ish-completion.bash
+    plugs: [network, network-bind, dot-kube]
+
+plugs:
+  dot-kube:
+    interface: personal-files
+    read:  [$HOME/.kube]
+    write: [$HOME/.kube]
 
 parts:
-  build:
+  k9ish:
     plugin: go
-    source: https://github.com/derailed/k9s
-    source-type: git
-    source-tag: $SNAPCRAFT_PROJECT_VERSION
+    source: .
+    override-pull: |
+      craftctl default
+      ver=$(git -C "$SNAPCRAFT_PART_SRC" describe --long --tags --always --match='v*.*.*' 2>/dev/null | sed 's/^v//')
+      if [ -z "$ver" ]; then
+        ver="0.0.0-dev"
+      fi
+      craftctl set version="$ver"
     override-build: |
       make test
       make build
-      install $SNAPCRAFT_PART_BUILD/execs/k9s -D $SNAPCRAFT_PART_INSTALL/bin/k9s
-    build-packages:
-      - build-essential
-    build-snaps:
-      - go
+      install -D "$SNAPCRAFT_PART_BUILD/execs/k9ish" "$SNAPCRAFT_PART_INSTALL/bin/k9ish"
+      "$SNAPCRAFT_PART_INSTALL/bin/k9ish" completion bash > "$SNAPCRAFT_PART_INSTALL/k9ish-completion.bash"
+    build-packages: [build-essential, git]
+    # Minimal stage runtime lacks terminfo tooling; stage infocmp so tcell's
+    # dynamic terminfo fallback works for terminals outside the bundled db.
+    stage-packages: [ncurses-bin]
+    build-snaps: [go]

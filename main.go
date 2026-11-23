@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/derailed/k9s/cmd"
+	_ "github.com/derailed/tcell/v2/terminfo/extended"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/klog/v2"
 )

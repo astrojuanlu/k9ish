@@ -7,10 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
-	"os"
-	"strings"
 
 	"github.com/derailed/k9s/internal"
 	"github.com/derailed/k9s/internal/client"
@@ -28,18 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 const (
-	windowsOS        = "windows"
-	osSelector       = "kubernetes.io/os"
-	osBetaSelector   = "beta." + osSelector
-	trUpload         = "Upload"
-	trDownload       = "Download"
-	pfIndicator      = "[orange::b]Ⓕ"
-	defaultTxRetries = 999
-	magicPrompt      = "Yes Please!"
+	windowsOS      = "windows"
+	osSelector     = "kubernetes.io/os"
+	osBetaSelector = "beta." + osSelector
+	pfIndicator    = "[orange::b]Ⓕ"
+	magicPrompt    = "Yes Please!"
 )
 
 // Pod represents a pod viewer.
@@ -102,13 +95,6 @@ func (p *Pod) bindDangerousKeys(aa *ui.KeyActions) {
 		ui.KeyA: ui.NewKeyActionWithOpts(
 			"Attach",
 			p.attachCmd,
-			ui.ActionOpts{
-				Visible:   true,
-				Dangerous: true,
-			}),
-		ui.KeyT: ui.NewKeyActionWithOpts(
-			"Transfer",
-			p.transferCmd,
 			ui.ActionOpts{
 				Visible:   true,
 				Dangerous: true,
@@ -284,75 +270,6 @@ func (p *Pod) sanitizeCmd(*tcell.EventKey) *tcell.EventKey {
 	return nil
 }
 
-func (p *Pod) transferCmd(*tcell.EventKey) *tcell.EventKey {
-	path := p.GetTable().GetSelectedItem()
-	if path == "" {
-		return nil
-	}
-
-	ns, n := client.Namespaced(path)
-	ack := func(args dialog.TransferArgs) bool {
-		local := args.To
-		if !args.Download {
-			local = args.From
-		}
-		if _, err := os.Stat(local); !args.Download && errors.Is(err, fs.ErrNotExist) {
-			p.App().Flash().Err(err)
-			return false
-		}
-
-		opts := make([]string, 0, 10)
-		opts = append(opts,
-			"cp",
-			strings.TrimSpace(args.From),
-			strings.TrimSpace(args.To),
-			fmt.Sprintf("--no-preserve=%t", args.NoPreserve),
-			fmt.Sprintf("--retries=%d", args.Retries),
-		)
-		if args.CO != "" {
-			opts = append(opts, "-c="+args.CO)
-		}
-		opts = append(opts, fmt.Sprintf("--retries=%d", args.Retries))
-
-		cliOpts := shellOpts{
-			background: true,
-			args:       opts,
-		}
-		op := trUpload
-		if args.Download {
-			op = trDownload
-		}
-
-		fqn := path + ":" + args.CO
-		if err := runK(p.App(), &cliOpts); err != nil {
-			p.App().cowCmd(err.Error())
-		} else {
-			p.App().Flash().Infof("%s successful on %s!", op, fqn)
-		}
-		return true
-	}
-
-	pod, err := fetchPod(p.App().factory, path)
-	if err != nil {
-		p.App().Flash().Err(err)
-		return nil
-	}
-
-	opts := dialog.TransferDialogOpts{
-		Title:      "Transfer",
-		Containers: fetchContainers(&pod.ObjectMeta, &pod.Spec, false),
-		Message:    "Download Files",
-		Pod:        fmt.Sprintf("%s/%s:", ns, n),
-		Ack:        ack,
-		Retries:    defaultTxRetries,
-		Cancel:     func() {},
-	}
-	d := p.App().Styles.Dialog()
-	dialog.ShowUploads(&d, p.App().Content.Pages, &opts)
-
-	return nil
-}
-
 // ----------------------------------------------------------------------------
 // Helpers...
 
@@ -401,20 +318,36 @@ func resumeShellIn(a *App, c model.Component, path, co string) {
 	err = shellIn(a, path, co)
 }
 
+// shellCommand returns the command used to enter a shell on the given platform.
+func shellCommand(platform string) []string {
+	if platform == windowsOS {
+		return []string{"cmd", "/c", winShellCheck}
+	}
+
+	return []string{"sh", "-c", shellCheck}
+}
+
 func shellIn(a *App, fqn, co string) error {
 	platform, err := getPodOS(a.factory, fqn)
 	if err != nil {
 		slog.Warn("OS detection failed (assuming linux)", slogs.Error, err)
 		platform = "linux"
 	}
+	cmd := shellCommand(platform)
 
-	args := computeShellArgs(fqn, co, a.Conn().Config().Flags(), platform)
+	ns, po := client.Namespaced(fqn)
 	c := color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold)
-	return runK(a, &shellOpts{
-		clear:  true,
-		banner: c.Sprintf(bannerFmt, fqn, co),
-		args:   args},
-	)
+	spec := client.ExecSpec{
+		Namespace: ns,
+		PodName:   po,
+		Container: co,
+		Command:   cmd,
+		TTY:       true,
+		Stdin:     true,
+	}
+	return runInteractive(a, true, c.Sprintf(bannerFmt, fqn, co), func(ctx context.Context) error {
+		return a.Conn().PodExec(ctx, &spec)
+	})
 }
 
 func containerAttachIn(a *App, comp model.Component, path, co string) error {
@@ -452,55 +385,21 @@ func resumeAttachIn(a *App, c model.Component, path, co string) {
 }
 
 func attachIn(a *App, path, co string) {
-	args := buildShellArgs("attach", path, co, a.Conn().Config().Flags())
+	ns, po := client.Namespaced(path)
 	c := color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold)
-	if err := runK(a, &shellOpts{clear: true, banner: c.Sprintf(bannerFmt, path, co), args: args}); err != nil {
+	spec := client.ExecSpec{
+		Namespace: ns,
+		PodName:   po,
+		Container: co,
+		TTY:       true,
+		Stdin:     true,
+	}
+	err := runInteractive(a, true, c.Sprintf(bannerFmt, path, co), func(ctx context.Context) error {
+		return a.Conn().PodAttach(ctx, &spec)
+	})
+	if err != nil {
 		a.Flash().Errf("Attach exec failed: %s", err)
 	}
-}
-
-func computeShellArgs(path, co string, flags *genericclioptions.ConfigFlags, platform string) []string {
-	args := buildShellArgs("exec", path, co, flags)
-	if platform == windowsOS {
-		return append(args, "--", "cmd", "/c", winShellCheck)
-	}
-
-	return append(args, "--", "sh", "-c", shellCheck)
-}
-
-func isFlagSet(flag *string) (string, bool) {
-	if flag == nil || *flag == "" {
-		return "", false
-	}
-
-	return *flag, true
-}
-
-func buildShellArgs(cmd, path, co string, flags *genericclioptions.ConfigFlags) []string {
-	args := make([]string, 0, 15)
-
-	args = append(args, cmd, "-it")
-	ns, po := client.Namespaced(path)
-	if ns != client.BlankNamespace {
-		args = append(args, "-n", ns)
-	}
-	args = append(args, po)
-	if flags != nil {
-		if v, ok := isFlagSet(flags.KubeConfig); ok {
-			args = append(args, "--kubeconfig", v)
-		}
-		if v, ok := isFlagSet(flags.Context); ok {
-			args = append(args, "--context", v)
-		}
-		if v, ok := isFlagSet(flags.BearerToken); ok {
-			args = append(args, "--token", v)
-		}
-	}
-	if co != "" {
-		args = append(args, "-c", co)
-	}
-
-	return args
 }
 
 func fetchContainers(meta *metav1.ObjectMeta, spec *v1.PodSpec, allContainers bool) []string {

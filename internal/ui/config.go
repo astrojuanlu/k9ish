@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/derailed/k9s/internal/config"
+	"github.com/derailed/k9s/internal/env"
 	"github.com/derailed/k9s/internal/model"
 	"github.com/derailed/k9s/internal/model1"
 	"github.com/derailed/k9s/internal/slogs"
@@ -251,7 +252,7 @@ func (c *Configurator) activeSkin() (string, bool) {
 		return skin, false
 	}
 
-	if env_skin := os.Getenv("K9S_SKIN"); env_skin != "" {
+	if env_skin := env.Get("K9ISH_SKIN", "K9S_SKIN"); env_skin != "" {
 		if _, err := os.Stat(config.SkinFileFromName(env_skin)); err == nil {
 			skin = env_skin
 			slog.Debug("Loading env skin", slogs.Skin, skin)

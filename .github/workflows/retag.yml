@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   retag:
-    if: github.repository == 'derailed/k9s' && github.ref == 'refs/heads/master' && github.actor == 'uozalp' && github.triggering_actor == 'uozalp'
+    if: github.repository == 'derailed/k9s' && github.ref == 'refs/heads/main' && github.actor == 'uozalp' && github.triggering_actor == 'uozalp'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

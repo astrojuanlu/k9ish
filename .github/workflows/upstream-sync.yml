@@ -1,0 +1,113 @@
+# Daily check for new commits on derailed/k9s@master. When upstream has moved
+# ahead of main, the tip of upstream/master is force-pushed to an
+# `upstream-sync` branch and a pull request against main is opened (or
+# refreshed). The branch carries upstream's own .github/workflows changes as
+# well, and pushing those requires a token that may change workflow files -
+# something the default GITHUB_TOKEN can never be granted (there is no
+# `workflows` scope in its permissions block). Set the SYNC_TOKEN repository
+# secret to a PAT with the workflow scope (fine-grained: contents, pull
+# requests and workflows read/write on this repo); the job falls back to
+# GITHUB_TOKEN, which only works while upstream's workflow files are
+# unchanged relative to the branch.
+#
+# The PR is always created: GitHub computes mergeability, so clean syncs
+# merge as-is and conflicted syncs show the standard "resolve conflicts"
+# banner for manual resolution.
+#
+# The PR is created through the REST API because the GraphQL
+# createPullRequest mutation is denied to GITHUB_TOKEN when the head
+# branch's history is not a descendant of the base branch - the case here.
+#
+# NOTE: scheduled workflows only run from the default branch; merge this file
+# into main (or cherry-pick it) for the cron trigger to take effect.
+
+name: Upstream sync (k9s)
+
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  upstream-sync:
+    name: Check upstream/master and open sync PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # force-push the upstream-sync branch
+      pull-requests: write # open or refresh the sync PR
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch upstream/master
+        run: |
+          git config user.name "k9ish-upstream-sync[bot]"
+          git config user.email "k9ish-upstream-sync[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/derailed/k9s.git
+          git fetch upstream master --no-tags
+
+      - name: Check for new upstream commits
+        id: check
+        run: |
+          count="$(git rev-list --count main..upstream/master)"
+          head="$(git rev-parse --short upstream/master)"
+          {
+            echo "count=$count"
+            echo "head=$head"
+          } >>"$GITHUB_OUTPUT"
+          echo "upstream/master is $count commits ahead of main (head $head)"
+
+      - name: Push branch and open sync PR
+        if: steps.check.outputs.count != '0'
+        env:
+          # A PAT with the workflow scope is required whenever the sync
+          # carries changes to .github/workflows; see the file header.
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN || github.token }}
+          UPSTREAM_COUNT: ${{ steps.check.outputs.count }}
+          UPSTREAM_HEAD: ${{ steps.check.outputs.head }}
+        run: |
+          gh auth setup-git
+          git push --force origin upstream/master:refs/heads/upstream-sync
+          title="Sync upstream/master@${UPSTREAM_HEAD}"
+          {
+            echo "Brings \`derailed/k9s@master\` \`${UPSTREAM_HEAD}\` (\`${UPSTREAM_COUNT}\` new commits since the last sync) into this fork."
+            echo
+            echo "The \`upstream-sync\` branch is the tip of upstream/master, force-updated on every sync run."
+          } >pr-body.md
+          # Only an OPEN PR counts as existing; gh pr view also matches closed
+          # ones, which would silently refresh a closed PR forever.
+          if [ -n "$(gh pr list --repo "$GITHUB_REPOSITORY" --head upstream-sync --state open --json url --jq '.[0].url')" ]; then
+            pr_url="$(gh pr edit upstream-sync --repo "$GITHUB_REPOSITORY" --title "$title" --body-file pr-body.md)"
+          else
+            # REST instead of `gh pr create`: the GraphQL createPullRequest
+            # mutation is denied to GITHUB_TOKEN (a GitHub App) when the head
+            # branch's history is not a descendant of the base branch, which
+            # is the case here (the branch is upstream/master's tip).
+            pr_url="$(gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
+              -f title="$title" -f head=upstream-sync -f base=main \
+              -f body="$(cat pr-body.md)" --jq .html_url)"
+          fi
+          {
+            echo "## Upstream sync"
+            echo
+            echo "- upstream/master tip: \`${UPSTREAM_HEAD}\` (\`${UPSTREAM_COUNT}\` new commits)"
+            echo "- sync PR: [${title}](${pr_url})"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Nothing to do
+        if: steps.check.outputs.count == '0'
+        run: |
+          echo "## Upstream sync" >>"$GITHUB_STEP_SUMMARY"
+          echo
+          echo "upstream/master is up to date: no new commits to sync." >>"$GITHUB_STEP_SUMMARY"

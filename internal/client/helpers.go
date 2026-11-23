@@ -4,14 +4,11 @@
 package client
 
 import (
-	"log/slog"
-	"os"
-	"os/user"
 	"path"
 	"regexp"
 	"strings"
 
-	"github.com/derailed/k9s/internal/slogs"
+	"github.com/derailed/k9s/internal/home"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -89,12 +86,7 @@ func MetaFQN(m *metav1.ObjectMeta) string {
 }
 
 func mustHomeDir() string {
-	usr, err := user.Current()
-	if err != nil {
-		slog.Error("Die getting user home directory", slogs.Error, err)
-		os.Exit(1)
-	}
-	return usr.HomeDir
+	return home.MustDir()
 }
 
 func toHostDir(host string) string {

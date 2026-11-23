@@ -47,6 +47,8 @@ func makeConn() *conn {
 }
 
 func (*conn) Config() *client.Config                                   { return nil }
+func (*conn) PodExec(context.Context, *client.ExecSpec) error          { return nil }
+func (*conn) PodAttach(context.Context, *client.ExecSpec) error        { return nil }
 func (*conn) Dial() (kubernetes.Interface, error)                      { return nil, nil }
 func (*conn) DialLogs() (kubernetes.Interface, error)                  { return nil, nil }
 func (*conn) ConnectionOK() bool                                       { return true }

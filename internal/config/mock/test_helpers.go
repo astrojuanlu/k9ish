@@ -4,6 +4,7 @@
 package mock
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -132,6 +133,12 @@ func (mockConnection) CanI(string, *client.GVR, string, []string) (bool, error) 
 	return true, nil
 }
 func (mockConnection) Config() *client.Config {
+	return nil
+}
+func (mockConnection) PodExec(context.Context, *client.ExecSpec) error {
+	return nil
+}
+func (mockConnection) PodAttach(context.Context, *client.ExecSpec) error {
 	return nil
 }
 func (mockConnection) ConnectionOK() bool {

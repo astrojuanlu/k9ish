@@ -9,11 +9,13 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/derailed/k9s/internal/env"
 	"github.com/derailed/k9s/internal/slogs"
 )
 
 const (
-	envPFAddress          = "K9S_DEFAULT_PF_ADDRESS"
+	envPFAddress          = "K9ISH_DEFAULT_PF_ADDRESS"
+	envPFAddressFallback  = "K9S_DEFAULT_PF_ADDRESS"
 	defaultPortFwdAddress = "localhost"
 )
 
@@ -30,11 +32,6 @@ func isYamlFile(file string) bool {
 	ext := filepath.Ext(file)
 
 	return ext == ".yml" || ext == ".yaml"
-}
-
-// isEnvSet checks if env var is set.
-func isEnvSet(env string) bool {
-	return os.Getenv(env) != ""
 }
 
 // UserTmpDir returns the temp dir with the current user name.
@@ -68,7 +65,7 @@ func MustK9sUser() string {
 }
 
 func defaultPFAddress() string {
-	if a := os.Getenv(envPFAddress); a != "" {
+	if a := env.Get(envPFAddress, envPFAddressFallback); a != "" {
 		return a
 	}
 

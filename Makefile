@@ -1,6 +1,8 @@
-NAME            := k9s
+NAME            := k9ish
 VERSION         ?= v0.51.0
-PACKAGE         := github.com/derailed/$(NAME)
+# PACKAGE must match the Go module path (ldflags stamping); it is not derived
+# from NAME since the module path is deliberately kept as upstream's.
+PACKAGE         := github.com/derailed/k9s
 OUTPUT_BIN      ?= execs/${NAME}
 GO_FLAGS        ?=
 GO_TAGS	        ?= netgo

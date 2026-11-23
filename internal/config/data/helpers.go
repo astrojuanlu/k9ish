@@ -11,10 +11,14 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/derailed/k9s/internal/env"
 	"gopkg.in/yaml.v3"
 )
 
-const envFGNodeShell = "K9S_FEATURE_GATE_NODE_SHELL"
+const (
+	envFGNodeShell         = "K9ISH_FEATURE_GATE_NODE_SHELL"
+	envFGNodeShellFallback = "K9S_FEATURE_GATE_NODE_SHELL"
+)
 
 var invalidPathCharsRX = regexp.MustCompile(`[:/]+`)
 
@@ -29,7 +33,7 @@ func SanitizeFileName(name string) string {
 }
 
 func defaultFGNodeShell() bool {
-	if a := os.Getenv(envFGNodeShell); a != "" {
+	if a := env.Get(envFGNodeShell, envFGNodeShellFallback); a != "" {
 		return a == "true"
 	}
 
