@@ -43,11 +43,15 @@ parts:
     source: .
     override-pull: |
       craftctl default
-      craftctl set version=$(git describe --long --tags --always --match=v*.*.* | sed 's/v//')
+      ver=$(git -C "$SNAPCRAFT_PART_SRC" describe --long --tags --always --match='v*.*.*' 2>/dev/null | sed 's/^v//')
+      if [ -z "$ver" ]; then
+        ver="0.0.0-dev"
+      fi
+      craftctl set version="$ver"
     override-build: |
       make test
       make build
       install -D "$SNAPCRAFT_PART_BUILD/execs/k9ish" "$SNAPCRAFT_PART_INSTALL/bin/k9ish"
       "$SNAPCRAFT_PART_INSTALL/bin/k9ish" completion bash > "$SNAPCRAFT_PART_INSTALL/k9ish-completion.bash"
-    build-packages: [build-essential]
+    build-packages: [build-essential, git]
     build-snaps: [go]
