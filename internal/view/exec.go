@@ -37,7 +37,7 @@ import (
 const (
 	shellCheck    = `command -v bash >/dev/null && exec bash || exec sh`
 	winShellCheck = `where powershell >nul 2>&1 && powershell || cmd`
-	bannerFmt     = "<<K9s-Shell>> Pod: %s | Container: %s \n"
+	bannerFmt     = "<<K9ish-Shell>> Pod: %s | Container: %s \n"
 	outputPrefix  = "[output]"
 )
 
@@ -187,9 +187,9 @@ func runInteractive(a *App, clear bool, banner string, stream func(context.Conte
 }
 
 const (
-	k9sShell           = "k9s-shell"
-	k9sShellRetryCount = 50
-	k9sShellRetryDelay = 2 * time.Second
+	k9ishShell           = "k9ish-shell"
+	k9ishShellRetryCount = 50
+	k9ishShellRetryDelay = 2 * time.Second
 )
 
 func launchNodeShell(v model.Igniter, a *App, node string) {
@@ -235,7 +235,7 @@ func launchPodShell(v model.Igniter, a *App) {
 	defer v.Start()
 
 	ns := a.Config.K9s.ShellPod.Namespace
-	if err := sshIn(a, client.FQN(ns, k9sShellPodName()), k9sShell); err != nil {
+	if err := sshIn(a, client.FQN(ns, k9ishShellPodName()), k9ishShell); err != nil {
 		a.Flash().Errf("Launching node shell failed: %s", err)
 	}
 }
@@ -295,7 +295,7 @@ func nukeK9sShell(a *App) error {
 		return err
 	}
 
-	err = dial.CoreV1().Pods(ns).Delete(ctx, k9sShellPodName(), metav1.DeleteOptions{})
+	err = dial.CoreV1().Pods(ns).Delete(ctx, k9ishShellPodName(), metav1.DeleteOptions{})
 	if kerrors.IsNotFound(err) {
 		return nil
 	}
@@ -306,7 +306,7 @@ func nukeK9sShell(a *App) error {
 func launchShellPod(ctx context.Context, a *App, node string) error {
 	var (
 		spo  = a.Config.K9s.ShellPod
-		spec = k9sShellPod(node, spo)
+		spec = k9ishShellPod(node, spo)
 	)
 
 	dial, err := a.Conn().Dial()
@@ -319,13 +319,13 @@ func launchShellPod(ctx context.Context, a *App, node string) error {
 		return err
 	}
 
-	for i := range k9sShellRetryCount {
-		o, err := a.factory.Get(client.PodGVR, client.FQN(spo.Namespace, k9sShellPodName()), true, labels.Everything())
+	for i := range k9ishShellRetryCount {
+		o, err := a.factory.Get(client.PodGVR, client.FQN(spo.Namespace, k9ishShellPodName()), true, labels.Everything())
 		if err != nil {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(k9sShellRetryDelay):
+			case <-time.After(k9ishShellRetryDelay):
 				continue
 			}
 		}
@@ -345,24 +345,24 @@ func launchShellPod(ctx context.Context, a *App, node string) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(k9sShellRetryDelay):
+		case <-time.After(k9ishShellRetryDelay):
 		}
 	}
 
 	return fmt.Errorf("unable to launch shell pod on node %s", node)
 }
 
-func k9sShellPodName() string {
-	return fmt.Sprintf("%s-%d", k9sShell, os.Getpid())
+func k9ishShellPodName() string {
+	return fmt.Sprintf("%s-%d", k9ishShell, os.Getpid())
 }
 
-func k9sShellPod(node string, cfg *config.ShellPod) *v1.Pod {
+func k9ishShellPod(node string, cfg *config.ShellPod) *v1.Pod {
 	var grace int64
 	var priv = true
 
 	slog.Debug("Shell pod config", slogs.ShellPodCfg, cfg)
 	c := v1.Container{
-		Name:            k9sShell,
+		Name:            k9ishShell,
 		Image:           cfg.Image,
 		ImagePullPolicy: cfg.ImagePullPolicy,
 		VolumeMounts: []v1.VolumeMount{
@@ -414,7 +414,7 @@ func k9sShellPod(node string, cfg *config.ShellPod) *v1.Pod {
 	}
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k9sShellPodName(),
+			Name:      k9ishShellPodName(),
 			Namespace: cfg.Namespace,
 			Labels:    cfg.Labels,
 		},

@@ -17,6 +17,7 @@ import (
 
 	"github.com/derailed/k9s/internal/client"
 	"github.com/derailed/k9s/internal/config/data"
+	"github.com/derailed/k9s/internal/env"
 	"github.com/derailed/k9s/internal/slogs"
 )
 
@@ -441,7 +442,7 @@ func (k *K9s) Validate(c client.Connection, contextName, clusterName string) {
 		k.MaxConnRetry = defaultMaxConnRetry
 	}
 
-	if a := os.Getenv(envPFAddress); a != "" {
+	if a := env.Get(envPFAddress, envPFAddressFallback); a != "" {
 		k.PortForwardAddress = a
 	}
 	if k.PortForwardAddress == "" {

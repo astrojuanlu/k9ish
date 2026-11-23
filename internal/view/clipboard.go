@@ -11,13 +11,16 @@ import (
 	"strings"
 
 	"github.com/atotto/clipboard"
+	"github.com/derailed/k9s/internal/env"
 )
 
 const (
-	clipboardModeEnv = "K9S_CLIPBOARD"
-	osc52MaxEnv      = "K9S_OSC52_MAX"
-	termEnv          = "TERM"
-	tmuxEnv          = "TMUX"
+	clipboardModeEnv         = "K9ISH_CLIPBOARD"
+	clipboardModeEnvFallback = "K9S_CLIPBOARD"
+	osc52MaxEnv              = "K9ISH_OSC52_MAX"
+	osc52MaxEnvFallback      = "K9S_OSC52_MAX"
+	termEnv                  = "TERM"
+	tmuxEnv                  = "TMUX"
 
 	clipboardModeAuto   = "auto"
 	clipboardModeNative = "native"
@@ -49,7 +52,7 @@ func clipboardWrite(text string) error {
 }
 
 func clipboardMode() string {
-	mode := strings.ToLower(strings.TrimSpace(os.Getenv(clipboardModeEnv)))
+	mode := strings.ToLower(strings.TrimSpace(env.Get(clipboardModeEnv, clipboardModeEnvFallback)))
 	switch mode {
 	case "", clipboardModeAuto:
 		return clipboardModeAuto
@@ -105,7 +108,7 @@ func writeOSC52(text string) error {
 }
 
 func osc52MaxEncodedLen() int {
-	v := strings.TrimSpace(os.Getenv(osc52MaxEnv))
+	v := strings.TrimSpace(env.Get(osc52MaxEnv, osc52MaxEnvFallback))
 	if v == "" {
 		return defaultOSC52MaxEncodedLen
 	}

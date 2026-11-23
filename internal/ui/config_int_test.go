@@ -15,7 +15,7 @@ import (
 )
 
 func Test_activeConfig(t *testing.T) {
-	require.NoError(t, os.Setenv(config.K9sEnvConfigDir, "/tmp/test-config"))
+	require.NoError(t, os.Setenv(config.EnvConfigDir, "/tmp/test-config"))
 	require.NoError(t, config.InitLocs())
 
 	cl, ct := "cl-1", "ct-1-1"

@@ -22,9 +22,9 @@ import (
 )
 
 func TestSkinnedContext(t *testing.T) {
-	require.NoError(t, os.Setenv(config.K9sEnvConfigDir, "/tmp/k9s-test"))
+	require.NoError(t, os.Setenv(config.EnvConfigDir, "/tmp/k9s-test"))
 	require.NoError(t, config.InitLocs())
-	defer require.NoError(t, os.RemoveAll(config.K9sEnvConfigDir))
+	defer require.NoError(t, os.RemoveAll(config.EnvConfigDir))
 
 	sf := filepath.Join("..", "config", "testdata", "skins", "black-and-wtf.yaml")
 	raw, err := os.ReadFile(sf)
@@ -53,9 +53,9 @@ func TestSkinnedContext(t *testing.T) {
 }
 
 func TestBenchConfig(t *testing.T) {
-	require.NoError(t, os.Setenv(config.K9sEnvConfigDir, "/tmp/test-config"))
+	require.NoError(t, os.Setenv(config.EnvConfigDir, "/tmp/test-config"))
 	require.NoError(t, config.InitLocs())
-	defer require.NoError(t, os.RemoveAll(config.K9sEnvConfigDir))
+	defer require.NoError(t, os.RemoveAll(config.EnvConfigDir))
 
 	bc, err := config.EnsureBenchmarksCfgFile("cl-1", "ct-1")
 	require.NoError(t, err)

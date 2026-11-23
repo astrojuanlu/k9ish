@@ -30,7 +30,7 @@ import (
 const (
 	appName      = config.AppName
 	shortAppDesc = "A graphical CLI for your Kubernetes cluster management."
-	longAppDesc  = "K9s is a CLI to view and manage your Kubernetes clusters."
+	longAppDesc  = "k9ish is a CLI to view and manage your Kubernetes clusters."
 )
 
 var _ data.KubeSettings = (*client.Config)(nil)
@@ -56,7 +56,7 @@ func (e flagError) Error() string { return e.err.Error() }
 
 func init() {
 	if err := config.InitLogLoc(); err != nil {
-		fmt.Printf("Fail to init k9s logs location %s\n", err)
+		fmt.Printf("Fail to init k9ish logs location %s\n", err)
 	}
 
 	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
@@ -94,7 +94,7 @@ func run(*cobra.Command, []string) error {
 	}()
 	defer func() {
 		if err := recover(); err != nil {
-			slog.Error("Boom!! k9s init failed", slogs.Error, err)
+			slog.Error("Boom!! k9ish init failed", slogs.Error, err)
 			slog.Error("", slogs.Stack, string(debug.Stack()))
 			printLogo(color.Red)
 			fmt.Printf("%s", color.Colorize("Boom!! ", color.Red))
@@ -133,7 +133,7 @@ func run(*cobra.Command, []string) error {
 }
 
 func loadConfiguration() (*config.Config, error) {
-	slog.Info("🐶 K9s starting up...")
+	slog.Info("🐶 k9ish starting up...")
 
 	k8sCfg := client.NewConfig(k8sFlags)
 	k9sCfg := config.NewConfig(k8sCfg)
@@ -150,7 +150,7 @@ func loadConfiguration() (*config.Config, error) {
 	}
 	k9sCfg.K9s.Override(k9sFlags)
 	if err := k9sCfg.Refine(k8sFlags, k9sFlags, k8sCfg); err != nil {
-		slog.Error("Fail to refine k9s config", slogs.Error, err)
+		slog.Error("Fail to refine k9ish config", slogs.Error, err)
 		errs = errors.Join(errs, err)
 	}
 
@@ -172,7 +172,7 @@ func loadConfiguration() (*config.Config, error) {
 	}
 
 	if err := k9sCfg.Save(false); err != nil {
-		slog.Error("K9s config save failed", slogs.Error, err)
+		slog.Error("k9ish config save failed", slogs.Error, err)
 		errs = errors.Join(errs, err)
 	}
 
@@ -216,25 +216,25 @@ func initK9sFlags() {
 		k9sFlags.Headless,
 		"headless",
 		false,
-		"Turn K9s header off",
+		"Turn k9ish header off",
 	)
 	rootCmd.Flags().BoolVar(
 		k9sFlags.Logoless,
 		"logoless",
 		false,
-		"Turn K9s logo off",
+		"Turn k9ish logo off",
 	)
 	rootCmd.Flags().BoolVar(
 		k9sFlags.Crumbsless,
 		"crumbsless",
 		false,
-		"Turn K9s crumbs off",
+		"Turn k9ish crumbs off",
 	)
 	rootCmd.Flags().BoolVar(
 		k9sFlags.Splashless,
 		"splashless",
 		false,
-		"Turn K9s splash screen off",
+		"Turn k9ish splash screen off",
 	)
 	rootCmd.Flags().BoolVar(
 		k9sFlags.Invert,
@@ -246,7 +246,7 @@ func initK9sFlags() {
 		k9sFlags.AllNamespaces,
 		"all-namespaces", "A",
 		false,
-		"Launch K9s in all namespaces",
+		"Launch k9ish in all namespaces",
 	)
 	rootCmd.Flags().StringVarP(
 		k9sFlags.Command,

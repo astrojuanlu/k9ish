@@ -19,7 +19,7 @@ import (
 func infoCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "info",
-		Short: "List K9s configurations info",
+		Short: "List k9ish configurations info",
 		RunE:  printInfo,
 	}
 }

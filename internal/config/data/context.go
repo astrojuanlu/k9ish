@@ -4,10 +4,10 @@
 package data
 
 import (
-	"os"
 	"sync"
 
 	"github.com/derailed/k9s/internal/client"
+	"github.com/derailed/k9s/internal/env"
 	"k8s.io/client-go/tools/clientcmd/api"
 )
 
@@ -73,7 +73,7 @@ func (c *Context) Validate(conn client.Connection, _, clusterName string) {
 	defer c.mx.Unlock()
 
 	c.ClusterName = clusterName
-	if b := os.Getenv(envFGNodeShell); b != "" {
+	if b := env.Get(envFGNodeShell, envFGNodeShellFallback); b != "" {
 		c.FeatureGates.NodeShell = defaultFGNodeShell()
 	}
 

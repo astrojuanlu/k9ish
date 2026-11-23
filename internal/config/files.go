@@ -13,20 +13,27 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/derailed/k9s/internal/config/data"
+	"github.com/derailed/k9s/internal/env"
 	"github.com/derailed/k9s/internal/slogs"
 )
 
 const (
-	// K9sEnvConfigDir represents k9s configuration dir env var.
-	K9sEnvConfigDir = "K9S_CONFIG_DIR"
+	// EnvConfigDir represents the k9ish configuration dir env var.
+	EnvConfigDir = "K9ISH_CONFIG_DIR"
 
-	// K9sEnvLogsDir represents k9s logs dir env var.
-	K9sEnvLogsDir = "K9S_LOGS_DIR"
+	// EnvConfigDirFallback is the legacy alias for EnvConfigDir.
+	EnvConfigDirFallback = "K9S_CONFIG_DIR"
 
-	// AppName tracks k9s app name.
-	AppName = "k9s"
+	// EnvLogsDir represents the k9ish logs dir env var.
+	EnvLogsDir = "K9ISH_LOGS_DIR"
 
-	K9sLogsFile = "k9s.log"
+	// EnvLogsDirFallback is the legacy alias for EnvLogsDir.
+	EnvLogsDirFallback = "K9S_LOGS_DIR"
+
+	// AppName tracks the k9ish app name.
+	AppName = "k9ish"
+
+	K9sLogsFile = "k9ish.log"
 )
 
 var (
@@ -85,13 +92,13 @@ var (
 	AppHotKeysFile string
 )
 
-// InitLogLoc initializes K9s logs location.
+// InitLogLoc initializes k9ish logs location.
 func InitLogLoc() error {
 	var appLogDir string
 	switch {
-	case isEnvSet(K9sEnvLogsDir):
-		appLogDir = os.Getenv(K9sEnvLogsDir)
-	case isEnvSet(K9sEnvConfigDir):
+	case env.IsSet(EnvLogsDir, EnvLogsDirFallback):
+		appLogDir = env.Get(EnvLogsDir, EnvLogsDirFallback)
+	case env.IsSet(EnvConfigDir, EnvConfigDirFallback):
 		tmpDir, err := UserTmpDir()
 		if err != nil {
 			return err
@@ -114,15 +121,15 @@ func InitLogLoc() error {
 
 // InitLocs initializes k9s artifacts locations.
 func InitLocs() error {
-	if isEnvSet(K9sEnvConfigDir) {
-		return initK9sEnvLocs()
+	if env.IsSet(EnvConfigDir, EnvConfigDirFallback) {
+		return initEnvLocs()
 	}
 
 	return initXDGLocs()
 }
 
-func initK9sEnvLocs() error {
-	AppConfigDir = os.Getenv(K9sEnvConfigDir)
+func initEnvLocs() error {
+	AppConfigDir = env.Get(EnvConfigDir, EnvConfigDirFallback)
 	if err := data.EnsureFullPath(AppConfigDir, data.DefaultDirMod); err != nil {
 		return err
 	}
