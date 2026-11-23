@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/derailed/k9s/internal/color"
 	"github.com/derailed/k9s/internal/config"
 	"github.com/derailed/k9s/internal/config/data"
+	"github.com/derailed/k9s/internal/home"
 	"github.com/derailed/k9s/internal/slogs"
 	"github.com/derailed/k9s/internal/view"
 	"github.com/lmittmann/tint"
@@ -282,6 +284,7 @@ func initK8sFlags() {
 		"",
 		"Path to the kubeconfig file to use for CLI requests",
 	)
+	seedDefaultKubeConfig(k8sFlags)
 
 	rootCmd.Flags().StringVar(
 		k8sFlags.Timeout,
@@ -322,6 +325,30 @@ func initK8sFlags() {
 	initAsFlags()
 	initCertFlags()
 	initK8sFlagCompletion()
+}
+
+// seedDefaultKubeConfig points the client at the kubeconfig in the user's real
+// home directory when the execution environment has overridden $HOME and the
+// user did not provide an explicit configuration. client-go's default loading
+// rules follow $HOME, which may not be the user's real home directory in such
+// environments. In unconfined environments the seeded path is identical to
+// what client-go would have picked, so behavior is unchanged.
+func seedDefaultKubeConfig(flags *genericclioptions.ConfigFlags) {
+	seedKubeConfigFrom(flags, os.Getenv("KUBECONFIG"), home.Dir())
+}
+
+func seedKubeConfigFrom(flags *genericclioptions.ConfigFlags, envConfig, homeDir string) {
+	if flags.KubeConfig != nil && *flags.KubeConfig != "" {
+		return
+	}
+	if envConfig != "" {
+		return
+	}
+	if homeDir == "" {
+		return
+	}
+	cfg := filepath.Join(homeDir, ".kube", "config")
+	flags.KubeConfig = &cfg
 }
 
 func initAsFlags() {
