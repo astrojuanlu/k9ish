@@ -1,14 +1,15 @@
-# Build and release the k9ish snap to latest/edge on every commit to main.
-#
-# Releases are serialized: uploading and releasing must not race between
-# two pushes to main, or the edge channel could end up pointing at a
-# revision we did not intend.
+# Build and release the k9ish snap to latest/edge, after tests pass on
+# main. Triggered when the "K9s Test" workflow run on main completes;
+# releases are serialized so that two pushes to main cannot race, or the
+# edge channel could end up pointing at a revision we did not intend.
 
 name: Release snap to edge
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [ "K9s Test" ]
+    types: [ completed ]
+    branches: [ main ]
 
 concurrency:
   group: release-to-edge-${{ github.ref }}
@@ -22,10 +23,12 @@ jobs:
     name: Pack and release to latest/edge
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Check out the repository
+      - name: Check out the tested commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           # The job only packs and uploads to the store; it never pushes,
           # so the checked-out token does not need to outlive the step.
           persist-credentials: false

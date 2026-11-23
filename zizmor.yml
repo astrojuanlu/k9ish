@@ -1,0 +1,8 @@
+# publish-edge.yml is triggered exclusively by workflow_run on our own
+# "K9s Test" runs against main: it builds only code pushed to main, with
+# contents: read and no persisted checkout credentials, so the generic
+# dangerous-triggers warning does not apply here.
+rules:
+  dangerous-triggers:
+    ignore:
+      - publish-edge.yml
