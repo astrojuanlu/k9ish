@@ -4,6 +4,8 @@
 package client
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery/cached/disk"
 	"k8s.io/client-go/dynamic"
@@ -95,6 +97,14 @@ type Connection interface {
 
 	// ConnectionOK checks api server connection status.
 	ConnectionOK() bool
+
+	// PodExec runs a command inside a pod container streaming the process
+	// terminal.
+	PodExec(ctx context.Context, spec ExecSpec) error
+
+	// PodAttach attaches to a running pod container streaming the process
+	// terminal.
+	PodAttach(ctx context.Context, spec ExecSpec) error
 
 	// Dial connects to api server.
 	Dial() (kubernetes.Interface, error)

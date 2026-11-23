@@ -305,6 +305,47 @@ func clearScreen() {
 	fmt.Print("\033[H\033[2J")
 }
 
+// runInteractive streams a pod exec/attach session over the process terminal,
+// suspending the UI for the duration.
+func runInteractive(a *App, clear bool, banner string, stream func(context.Context) error) error {
+	if a.Conn() == nil || !a.Conn().ConnectionOK() {
+		return errors.New("no cluster connection")
+	}
+	if clear {
+		clearScreen()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
+	go func(cancel context.CancelFunc) {
+		select {
+		case sig := <-sigChan:
+			slog.Debug("Command canceled with signal", slogs.Sig, sig)
+			cancel()
+		case <-ctx.Done():
+			slog.Debug("Signal context canceled!")
+		}
+	}(cancel)
+
+	var streamErr error
+	a.Halt()
+	defer a.Resume()
+	suspended := a.Suspend(func() {
+		if banner != "" {
+			_, _ = os.Stdout.WriteString(banner)
+		}
+		streamErr = stream(ctx)
+		clearScreen()
+	})
+	if !suspended {
+		return fmt.Errorf("unable to suspend UI")
+	}
+
+	return streamErr
+}
+
 const (
 	k9sShell           = "k9s-shell"
 	k9sShellRetryCount = 50
@@ -366,26 +407,30 @@ func sshIn(a *App, fqn, co string) error {
 		slog.Warn("os detect failed", slogs.Error, err)
 	}
 
-	args := buildShellArgs("exec", fqn, co, a.Conn().Config().Flags())
-	args = append(args, "--")
-	if len(cfg.Command) > 0 {
-		args = append(args, cfg.Command...)
-		args = append(args, cfg.Args...)
-	} else {
-		if platform == windowsOS {
-			args = append(args, "--", "cmd", "/c", winShellCheck)
-		}
-		args = append(args, "sh", "-c", shellCheck)
+	var cmd []string
+	switch {
+	case len(cfg.Command) > 0:
+		cmd = append(cmd, cfg.Command...)
+		cmd = append(cmd, cfg.Args...)
+	case platform == windowsOS:
+		cmd = []string{"cmd", "/c", winShellCheck}
+	default:
+		cmd = []string{"sh", "-c", shellCheck}
 	}
-	slog.Debug("Running command with args", slogs.Args, args)
+	slog.Debug("Running command with args", slogs.Args, cmd)
 
+	ns, n := client.Namespaced(fqn)
 	c := color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold)
-	err = runK(a, &shellOpts{
-		clear:  true,
-		banner: c.Sprintf(bannerFmt, fqn, co),
-		args:   args},
-	)
-	if err != nil {
+	if err := runInteractive(a, true, c.Sprintf(bannerFmt, fqn, co), func(ctx context.Context) error {
+		return a.Conn().PodExec(ctx, client.ExecSpec{
+			Namespace: ns,
+			PodName:   n,
+			Container: co,
+			Command:   cmd,
+			TTY:       true,
+			Stdin:     true,
+		})
+	}); err != nil {
 		return fmt.Errorf("shell exec failed: %w", err)
 	}
 
