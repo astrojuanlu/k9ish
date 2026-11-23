@@ -100,11 +100,11 @@ type Connection interface {
 
 	// PodExec runs a command inside a pod container streaming the process
 	// terminal.
-	PodExec(ctx context.Context, spec ExecSpec) error
+	PodExec(ctx context.Context, spec *ExecSpec) error
 
 	// PodAttach attaches to a running pod container streaming the process
 	// terminal.
-	PodAttach(ctx context.Context, spec ExecSpec) error
+	PodAttach(ctx context.Context, spec *ExecSpec) error
 
 	// Dial connects to api server.
 	Dial() (kubernetes.Interface, error)

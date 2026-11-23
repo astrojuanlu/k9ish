@@ -147,11 +147,11 @@ func clearScreen() {
 
 // runInteractive streams a pod exec/attach session over the process terminal,
 // suspending the UI for the duration.
-func runInteractive(a *App, clear bool, banner string, stream func(context.Context) error) error {
+func runInteractive(a *App, wipe bool, banner string, stream func(context.Context) error) error {
 	if a.Conn() == nil || !a.Conn().ConnectionOK() {
 		return errors.New("no cluster connection")
 	}
-	if clear {
+	if wipe {
 		clearScreen()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -261,15 +261,16 @@ func sshIn(a *App, fqn, co string) error {
 
 	ns, n := client.Namespaced(fqn)
 	c := color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold)
+	spec := client.ExecSpec{
+		Namespace: ns,
+		PodName:   n,
+		Container: co,
+		Command:   cmd,
+		TTY:       true,
+		Stdin:     true,
+	}
 	if err := runInteractive(a, true, c.Sprintf(bannerFmt, fqn, co), func(ctx context.Context) error {
-		return a.Conn().PodExec(ctx, client.ExecSpec{
-			Namespace: ns,
-			PodName:   n,
-			Container: co,
-			Command:   cmd,
-			TTY:       true,
-			Stdin:     true,
-		})
+		return a.Conn().PodExec(ctx, &spec)
 	}); err != nil {
 		return fmt.Errorf("shell exec failed: %w", err)
 	}

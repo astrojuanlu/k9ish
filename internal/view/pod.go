@@ -336,15 +336,16 @@ func shellIn(a *App, fqn, co string) error {
 
 	ns, po := client.Namespaced(fqn)
 	c := color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold)
+	spec := client.ExecSpec{
+		Namespace: ns,
+		PodName:   po,
+		Container: co,
+		Command:   cmd,
+		TTY:       true,
+		Stdin:     true,
+	}
 	return runInteractive(a, true, c.Sprintf(bannerFmt, fqn, co), func(ctx context.Context) error {
-		return a.Conn().PodExec(ctx, client.ExecSpec{
-			Namespace: ns,
-			PodName:   po,
-			Container: co,
-			Command:   cmd,
-			TTY:       true,
-			Stdin:     true,
-		})
+		return a.Conn().PodExec(ctx, &spec)
 	})
 }
 
@@ -385,14 +386,15 @@ func resumeAttachIn(a *App, c model.Component, path, co string) {
 func attachIn(a *App, path, co string) {
 	ns, po := client.Namespaced(path)
 	c := color.New(color.BgGreen).Add(color.FgBlack).Add(color.Bold)
+	spec := client.ExecSpec{
+		Namespace: ns,
+		PodName:   po,
+		Container: co,
+		TTY:       true,
+		Stdin:     true,
+	}
 	err := runInteractive(a, true, c.Sprintf(bannerFmt, path, co), func(ctx context.Context) error {
-		return a.Conn().PodAttach(ctx, client.ExecSpec{
-			Namespace: ns,
-			PodName:   po,
-			Container: co,
-			TTY:       true,
-			Stdin:     true,
-		})
+		return a.Conn().PodAttach(ctx, &spec)
 	})
 	if err != nil {
 		a.Flash().Errf("Attach exec failed: %s", err)

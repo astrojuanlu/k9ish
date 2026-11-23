@@ -38,17 +38,17 @@ type ExecSpec struct {
 
 // PodExec runs a command inside a pod container, streaming the process
 // terminal to and from the cluster.
-func (a *APIClient) PodExec(ctx context.Context, s ExecSpec) error {
-	return a.streamPod(ctx, s, "exec")
+func (a *APIClient) PodExec(ctx context.Context, spec *ExecSpec) error {
+	return a.streamPod(ctx, spec, "exec")
 }
 
 // PodAttach attaches to a running pod container, streaming the process
 // terminal to and from the cluster.
-func (a *APIClient) PodAttach(ctx context.Context, s ExecSpec) error {
-	return a.streamPod(ctx, s, "attach")
+func (a *APIClient) PodAttach(ctx context.Context, spec *ExecSpec) error {
+	return a.streamPod(ctx, spec, "attach")
 }
 
-func (a *APIClient) streamPod(ctx context.Context, s ExecSpec, verb string) error {
+func (a *APIClient) streamPod(ctx context.Context, spec *ExecSpec, verb string) error {
 	if !a.ConnectionOK() {
 		return fmt.Errorf("no connection to cluster")
 	}
@@ -60,7 +60,7 @@ func (a *APIClient) streamPod(ctx context.Context, s ExecSpec, verb string) erro
 	if err != nil {
 		return err
 	}
-	u, err := podStreamURL(dial, s, verb)
+	u, err := podStreamURL(dial, spec, verb)
 	if err != nil {
 		return err
 	}
@@ -73,26 +73,26 @@ func (a *APIClient) streamPod(ctx context.Context, s ExecSpec, verb string) erro
 		Stdin:  nil,
 		Stdout: nil,
 		Stderr: nil,
-		Tty:    s.TTY,
+		Tty:    spec.TTY,
 	}
-	if s.Stdin {
+	if spec.Stdin {
 		opts.Stdin = os.Stdin
 	}
 	opts.Stdout = os.Stdout
-	if !s.TTY {
+	if !spec.TTY {
 		opts.Stderr = os.Stderr
 	}
-	if s.TTY {
+	if spec.TTY {
 		q := newTerminalSizeQueue(os.Stdout)
 		opts.TerminalSizeQueue = q
 		defer stopTerminalSizeQueue(q)
 	}
 
 	slog.Debug("Streaming pod session",
-		slogs.Namespace, s.Namespace,
-		slogs.ResName, s.PodName,
-		slogs.Container, s.Container,
-		slogs.Command, s.Command,
+		slogs.Namespace, spec.Namespace,
+		slogs.ResName, spec.PodName,
+		slogs.Container, spec.Container,
+		slogs.Command, spec.Command,
 		slogs.Verb, verb,
 	)
 
@@ -100,30 +100,30 @@ func (a *APIClient) streamPod(ctx context.Context, s ExecSpec, verb string) erro
 }
 
 // podStreamURL builds the exec/attach request URL for the given pod.
-func podStreamURL(dial kubernetes.Interface, s ExecSpec, verb string) (*url.URL, error) {
+func podStreamURL(dial kubernetes.Interface, spec *ExecSpec, verb string) (*url.URL, error) {
 	req := dial.CoreV1().RESTClient().Post().
 		Resource("pods").
-		Namespace(s.Namespace).
-		Name(s.PodName).
+		Namespace(spec.Namespace).
+		Name(spec.PodName).
 		SubResource(verb)
 
 	switch verb {
 	case "exec":
 		req.VersionedParams(&v1.PodExecOptions{
-			Container: s.Container,
-			Command:   s.Command,
-			Stdin:     s.Stdin,
+			Container: spec.Container,
+			Command:   spec.Command,
+			Stdin:     spec.Stdin,
 			Stdout:    true,
-			Stderr:    !s.TTY,
-			TTY:       s.TTY,
+			Stderr:    !spec.TTY,
+			TTY:       spec.TTY,
 		}, scheme.ParameterCodec)
 	case "attach":
 		req.VersionedParams(&v1.PodAttachOptions{
-			Container: s.Container,
-			Stdin:     s.Stdin,
+			Container: spec.Container,
+			Stdin:     spec.Stdin,
 			Stdout:    true,
-			Stderr:    !s.TTY,
-			TTY:       s.TTY,
+			Stderr:    !spec.TTY,
+			TTY:       spec.TTY,
 		}, scheme.ParameterCodec)
 	default:
 		return nil, fmt.Errorf("unsupported pod stream verb %q", verb)

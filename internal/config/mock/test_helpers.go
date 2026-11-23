@@ -135,10 +135,10 @@ func (mockConnection) CanI(string, *client.GVR, string, []string) (bool, error) 
 func (mockConnection) Config() *client.Config {
 	return nil
 }
-func (mockConnection) PodExec(context.Context, client.ExecSpec) error {
+func (mockConnection) PodExec(context.Context, *client.ExecSpec) error {
 	return nil
 }
-func (mockConnection) PodAttach(context.Context, client.ExecSpec) error {
+func (mockConnection) PodAttach(context.Context, *client.ExecSpec) error {
 	return nil
 }
 func (mockConnection) ConnectionOK() bool {

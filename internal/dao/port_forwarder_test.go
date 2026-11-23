@@ -162,8 +162,8 @@ type pfConn struct {
 }
 
 func (*pfConn) Config() *client.Config                                { return nil }
-func (*pfConn) PodExec(context.Context, client.ExecSpec) error        { return nil }
-func (*pfConn) PodAttach(context.Context, client.ExecSpec) error      { return nil }
+func (*pfConn) PodExec(context.Context, *client.ExecSpec) error       { return nil }
+func (*pfConn) PodAttach(context.Context, *client.ExecSpec) error     { return nil }
 func (c *pfConn) Dial() (kubernetes.Interface, error)                 { return nil, c.dialErr }
 func (*pfConn) DialLogs() (kubernetes.Interface, error)               { return nil, nil }
 func (*pfConn) ConnectionOK() bool                                    { return true }

@@ -21,7 +21,7 @@ func testClientset(t *testing.T) kubernetes.Interface {
 }
 
 func TestPodStreamURLExec(t *testing.T) {
-	u, err := podStreamURL(testClientset(t), ExecSpec{
+	u, err := podStreamURL(testClientset(t), &ExecSpec{
 		Namespace: "ns1",
 		PodName:   "p1",
 		Container: "c1",
@@ -43,7 +43,7 @@ func TestPodStreamURLExec(t *testing.T) {
 }
 
 func TestPodStreamURLExecNoTTY(t *testing.T) {
-	u, err := podStreamURL(testClientset(t), ExecSpec{
+	u, err := podStreamURL(testClientset(t), &ExecSpec{
 		Namespace: "ns1",
 		PodName:   "p1",
 		Stdin:     true,
@@ -58,7 +58,7 @@ func TestPodStreamURLExecNoTTY(t *testing.T) {
 }
 
 func TestPodStreamURLAttach(t *testing.T) {
-	u, err := podStreamURL(testClientset(t), ExecSpec{
+	u, err := podStreamURL(testClientset(t), &ExecSpec{
 		Namespace: "ns1",
 		PodName:   "p1",
 		Container: "c1",
@@ -77,7 +77,7 @@ func TestPodStreamURLAttach(t *testing.T) {
 }
 
 func TestPodStreamURLBadVerb(t *testing.T) {
-	_, err := podStreamURL(testClientset(t), ExecSpec{Namespace: "ns1", PodName: "p1"}, "evacuate")
+	_, err := podStreamURL(testClientset(t), &ExecSpec{Namespace: "ns1", PodName: "p1"}, "evacuate")
 
 	assert.Error(t, err)
 }
