@@ -88,13 +88,26 @@ jobs:
           # Only an OPEN PR counts as existing; gh pr view also matches closed
           # ones, which would silently refresh a closed PR forever.
           if [ -n "$(gh pr list --repo "$GITHUB_REPOSITORY" --head upstream-sync --state open --json url --jq '.[0].url')" ]; then
-            gh pr edit upstream-sync --repo "$GITHUB_REPOSITORY" --title "$title" --body-file pr-body.md
+            pr_url="$(gh pr edit upstream-sync --repo "$GITHUB_REPOSITORY" --title "$title" --body-file pr-body.md)"
           else
-            gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
+            # REST instead of `gh pr create`: the GraphQL createPullRequest
+            # mutation is denied to GITHUB_TOKEN (a GitHub App) when the head
+            # branch's history is not a descendant of the base branch, which
+            # is the case here (the branch is upstream/master's tip).
+            pr_url="$(gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
               -f title="$title" -f head=upstream-sync -f base=main \
-              -f body="$(cat pr-body.md)" --jq .html_url
+              -f body="$(cat pr-body.md)" --jq .html_url)"
           fi
+          {
+            echo "## Upstream sync"
+            echo
+            echo "- upstream/master tip: \`${UPSTREAM_HEAD}\` (\`${UPSTREAM_COUNT}\` new commits)"
+            echo "- sync PR: [${title}](${pr_url})"
+          } >>"$GITHUB_STEP_SUMMARY"
 
       - name: Nothing to do
         if: steps.check.outputs.count == '0'
-        run: echo "No new upstream commits; main is up to date."
+        run: |
+          echo "## Upstream sync" >>"$GITHUB_STEP_SUMMARY"
+          echo
+          echo "upstream/master is up to date: no new commits to sync." >>"$GITHUB_STEP_SUMMARY"
