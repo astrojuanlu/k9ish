@@ -85,7 +85,9 @@ jobs:
             echo
             echo "The \`upstream-sync\` branch is the tip of upstream/master, force-updated on every sync run."
           } >pr-body.md
-          if gh pr view upstream-sync --repo "$GITHUB_REPOSITORY" --json url >/dev/null 2>&1; then
+          # Only an OPEN PR counts as existing; gh pr view also matches closed
+          # ones, which would silently refresh a closed PR forever.
+          if [ -n "$(gh pr list --repo "$GITHUB_REPOSITORY" --head upstream-sync --state open --json url --jq '.[0].url')" ]; then
             gh pr edit upstream-sync --repo "$GITHUB_REPOSITORY" --title "$title" --body-file pr-body.md
           else
             gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
