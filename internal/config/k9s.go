@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -131,6 +132,8 @@ func (k *K9s) Merge(k1 *K9s) {
 	if k1 == nil {
 		return
 	}
+	k.mx.Lock()
+	defer k.mx.Unlock()
 
 	for k, v := range k1.GPUVendors {
 		KnownGPUVendors[k] = v
@@ -392,6 +395,22 @@ func (k *K9s) IsInvert() bool {
 	}
 
 	return k.UI.Invert
+}
+
+// Logo returns the configured header logo ascii art.
+func (k *K9s) Logo() string {
+	if cfg := k.getActiveConfig(); cfg != nil {
+		if art := cfg.Logo(); strings.TrimSpace(art) != "" {
+			return art
+		}
+	}
+	k.mx.RLock()
+	defer k.mx.RUnlock()
+	if strings.TrimSpace(k.UI.Logo) == "" {
+		return ""
+	}
+
+	return k.UI.Logo
 }
 
 // GetRefreshRate returns the current refresh rate.

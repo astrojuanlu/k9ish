@@ -6,10 +6,24 @@ package cmd
 import (
 	"testing"
 
+	"github.com/derailed/k9s/internal/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
+
+func TestClientVersion(t *testing.T) {
+	oldClientVersion := client.Version
+	defer func() {
+		setClientVersion(oldClientVersion)
+	}()
+
+	expectedVersion := "cmd-pkg-test-version"
+
+	// validate that setting version via cmd package helper propagates to client.Version
+	setClientVersion(expectedVersion)
+	assert.Equal(t, expectedVersion, client.Version)
+}
 
 func TestSeedKubeConfigFrom(t *testing.T) {
 	t.Run("explicit flag wins", func(t *testing.T) {
