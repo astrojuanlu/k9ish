@@ -89,8 +89,17 @@ jobs:
             echo
             echo "The \`upstream-sync\` branch is the tip of upstream/master plus a commit that keeps the fork's GitHub workflows in place; it is force-updated on every sync run."
           } >pr-body.md
-          gh pr create --base main --head upstream-sync --title "$title" --body-file pr-body.md ||
-            gh pr edit upstream-sync --title "$title" --body-file pr-body.md
+          if gh pr view upstream-sync --repo "$GITHUB_REPOSITORY" --json url >/dev/null 2>&1; then
+            gh pr edit upstream-sync --repo "$GITHUB_REPOSITORY" --title "$title" --body-file pr-body.md
+          else
+            # REST instead of `gh pr create`: the GraphQL createPullRequest
+            # mutation is denied to GITHUB_TOKEN (a GitHub App) when the head
+            # branch's history is not a descendant of the base branch, which
+            # is the case here (the branch is upstream/master's tip).
+            gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
+              -f title="$title" -f head=upstream-sync -f base=main \
+              -f body="$(cat pr-body.md)" --jq .html_url
+          fi
 
       - name: Nothing to do
         if: steps.check.outputs.count == '0'
