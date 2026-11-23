@@ -41,8 +41,6 @@ const (
 	outputPrefix  = "[output]"
 )
 
-var editorEnvVars = []string{"K9S_EDITOR", "KUBE_EDITOR", "EDITOR"}
-
 type shellOpts struct {
 	clear, background bool
 	pipes             []string
@@ -122,57 +120,6 @@ func run(a *App, opts *shellOpts) (ok bool, errC chan error, outC chan string) {
 	}), errChan, statusChan
 }
 
-func edit(a *App, opts *shellOpts) bool {
-	var (
-		bin string
-		err error
-	)
-	for _, e := range editorEnvVars {
-		env := os.Getenv(e)
-		if env == "" {
-			continue
-		}
-
-		// There may be situations where the user sets the editor as the binary
-		// followed by some arguments (e.g. "code -w" to make it work with vscode)
-		//
-		// In such cases, the actual binary is only the first token
-		envTokens, shlexErr := shlex.Split(env)
-		if shlexErr != nil || len(envTokens) == 0 {
-			continue
-		}
-
-		if bin, err = exec.LookPath(envTokens[0]); err == nil {
-			// Make sure the path is at the end (this allows running editors
-			// with custom options)
-			if len(envTokens) > 1 {
-				originalArgs := opts.args
-				opts.args = envTokens[1:]
-				opts.args = append(opts.args, originalArgs...)
-			}
-
-			break
-		}
-	}
-	if bin == "" {
-		a.Flash().Errf("You must set at least one of those env vars: %s", strings.Join(editorEnvVars, "|"))
-		return false
-	}
-	opts.binary, opts.background = bin, false
-
-	suspended, errChan, _ := run(a, opts)
-	if !suspended {
-		a.Flash().Errf("edit command failed")
-	}
-	status := true
-	for e := range errChan {
-		a.Flash().Err(e)
-		status = false
-	}
-
-	return status
-}
-
 func shellQuote(s string) string {
 	if !strings.ContainsAny(s, " \t\n\"'\\") {
 		return s
@@ -210,22 +157,6 @@ func execute(opts *shellOpts, statusChan chan<- string) error {
 	cmds := make([]*exec.Cmd, 0, 1)
 	cmd := exec.CommandContext(ctx, opts.binary, opts.args...)
 	slog.Debug("Exec command", slogs.Command, opts)
-
-	if env := os.Getenv("K9S_EDITOR"); env != "" {
-		// There may be situations where the user sets the editor as the binary
-		// followed by some arguments (e.g. "code -w" to make it work with vscode)
-		//
-		// In such cases, the actual binary is only the first token
-		if binTokens, err := shlex.Split(env); err == nil && len(binTokens) > 0 {
-			if bin, err := exec.LookPath(binTokens[0]); err == nil {
-				binTokens[0] = bin
-				for i := range binTokens {
-					binTokens[i] = shellQuote(binTokens[i])
-				}
-				cmd.Env = append(os.Environ(), fmt.Sprintf("KUBE_EDITOR=%s", strings.Join(binTokens, " ")))
-			}
-		}
-	}
 
 	cmds = append(cmds, cmd)
 

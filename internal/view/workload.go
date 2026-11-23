@@ -39,11 +39,6 @@ func NewWorkload(gvr *client.GVR) ResourceViewer {
 
 func (w *Workload) bindDangerousKeys(aa *ui.KeyActions) {
 	aa.Bulk(ui.KeyMap{
-		ui.KeyE: ui.NewKeyActionWithOpts("Edit", w.editCmd,
-			ui.ActionOpts{
-				Visible:   true,
-				Dangerous: true,
-			}),
 		tcell.KeyCtrlD: ui.NewKeyActionWithOpts("Delete", w.deleteCmd,
 			ui.ActionOpts{
 				Visible:   true,
@@ -165,26 +160,6 @@ func (w *Workload) describeCmd(evt *tcell.EventKey) *tcell.EventKey {
 	}
 
 	describeResource(w.App(), nil, gvr, fqn)
-
-	return nil
-}
-
-func (w *Workload) editCmd(evt *tcell.EventKey) *tcell.EventKey {
-	path := w.GetTable().GetSelectedItem()
-	if path == "" {
-		return evt
-	}
-	gvr, fqn, ok := parsePath(path)
-	if !ok {
-		w.App().Flash().Err(fmt.Errorf("unable to parse path: %q", path))
-		return evt
-	}
-
-	w.Stop()
-	defer w.Start()
-	if err := editRes(w.App(), gvr, fqn); err != nil {
-		w.App().Flash().Err(err)
-	}
 
 	return nil
 }

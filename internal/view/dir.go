@@ -70,10 +70,6 @@ func (d *Dir) bindDangerousKeys(aa *ui.KeyActions) {
 			Visible:   true,
 			Dangerous: true,
 		}),
-		ui.KeyE: ui.NewKeyActionWithOpts("Edit", d.editCmd, ui.ActionOpts{
-			Visible:   true,
-			Dangerous: true,
-		}),
 	})
 }
 
@@ -117,26 +113,6 @@ func (d *Dir) viewCmd(evt *tcell.EventKey) *tcell.EventKey {
 func isManifest(s string) bool {
 	ext := path.Ext(s)
 	return ext == ".yml" || ext == ".yaml"
-}
-
-func (d *Dir) editCmd(evt *tcell.EventKey) *tcell.EventKey {
-	sel := d.GetTable().GetSelectedItem()
-	if sel == "" {
-		return evt
-	}
-
-	if !isManifest(sel) {
-		d.App().Flash().Errf("you must select a manifest")
-		return nil
-	}
-
-	d.Stop()
-	defer d.Start()
-	if !edit(d.App(), &shellOpts{clear: true, args: []string{sel}}) {
-		d.App().Flash().Errf("Failed to launch editor")
-	}
-
-	return nil
 }
 
 func (d *Dir) gotoCmd(evt *tcell.EventKey) *tcell.EventKey {

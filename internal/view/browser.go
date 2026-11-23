@@ -539,48 +539,6 @@ func (b *Browser) describeCmd(evt *tcell.EventKey) *tcell.EventKey {
 	return nil
 }
 
-func (b *Browser) editCmd(evt *tcell.EventKey) *tcell.EventKey {
-	path := b.GetSelectedItem()
-	if path == "" {
-		return evt
-	}
-
-	b.Stop()
-	defer b.Start()
-	if err := editRes(b.app, b.GVR(), path); err != nil {
-		b.App().Flash().Err(err)
-	}
-
-	return nil
-}
-
-func editRes(app *App, gvr *client.GVR, path string) error {
-	if path == "" {
-		return fmt.Errorf("nothing selected %q", path)
-	}
-	ns, n := client.Namespaced(path)
-	if n == "" {
-		return fmt.Errorf("missing resource name in path %q", path)
-	}
-	if client.IsClusterScoped(ns) {
-		ns = client.BlankNamespace
-	}
-	if ok, err := app.Conn().CanI(ns, gvr, n, client.PatchAccess); !ok || err != nil {
-		return fmt.Errorf("current user can't edit resource %s", gvr)
-	}
-
-	args := make([]string, 0, 10)
-	args = append(args, "edit", gvr.FQN(n))
-	if ns != client.BlankNamespace {
-		args = append(args, "-n", ns)
-	}
-	if err := runK(app, &shellOpts{clear: true, args: args}); err != nil {
-		app.Flash().Errf("Edit command failed: %s", err)
-	}
-
-	return nil
-}
-
 func (b *Browser) switchNamespaceCmd(evt *tcell.EventKey) *tcell.EventKey {
 	i, err := strconv.Atoi(string(evt.Rune()))
 	if err != nil {
@@ -662,13 +620,6 @@ func (b *Browser) refreshActions() {
 	if b.app.ConOK() {
 		b.namespaceActions(aa)
 		if !b.app.Config.IsReadOnly() {
-			if client.Can(b.meta.Verbs, "edit") {
-				aa.Add(ui.KeyE, ui.NewKeyActionWithOpts("Edit", b.editCmd,
-					ui.ActionOpts{
-						Visible:   true,
-						Dangerous: true,
-					}))
-			}
 			if client.Can(b.meta.Verbs, "delete") {
 				aa.Add(tcell.KeyCtrlD, ui.NewKeyActionWithOpts("Delete", b.deleteCmd,
 					ui.ActionOpts{
