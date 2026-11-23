@@ -1,41 +1,44 @@
-name: k9s
+name: k9ish
 base: core26
-summary: K9s is a CLI to view and manage your Kubernetes clusters.
+adopt-info: k9ish
+summary: A fork of k9s tuned for strict-confinement snap distribution
 description: |
-  K9s is a CLI to view and manage your Kubernetes clusters. By leveraging a terminal UI, you can easily traverse Kubernetes resources and view the state of your clusters in a single powerful session.
-website: https://k9scli.io
-license: Apache-2.0
-source-code: https://github.com/derailed/k9s
-issues: https://github.com/derailed/k9s/issues
-adopt-info: k9s
+  k9ish is a fork of K9s — the same terminal UI to browse and manage
+  Kubernetes clusters, modified so it can be packaged and distributed as a
+  strict-confinement snap and to talk to clusters exclusively through the
+  Kubernetes API (no bundled kubectl).
+
+  Compared to K9s, resource/manifest editing, `kubectl cp` file transfers,
+  apply/delete of local manifests from the :dir view, plugins and native
+  clipboard helpers are not available.
 
 grade: stable
-confinement: classic
-
-platforms:
-  amd64:
-  arm64:
-  armhf:
+confinement: strict
+platforms: {amd64: {}, arm64: {}, armhf: {}}
 
 apps:
-  k9s:
-    command: bin/k9s
-    completer: k9s-completion.bash
+  k9ish:
+    command: bin/k9ish
+    completer: k9ish-completion.bash
+    plugs: [network, network-bind, dot-kube]
+
+plugs:
+  dot-kube:
+    interface: personal-files
+    read:  [$HOME/.kube]
+    write: [$HOME/.kube]
 
 parts:
-  k9s:
+  k9ish:
     plugin: go
-    source: https://github.com/derailed/k9s
-    source-type: git
+    source: .
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --long --tags --always --match=v*.*.* | sed 's/v//')
     override-build: |
       make test
       make build
-      install $SNAPCRAFT_PART_BUILD/execs/k9s -D $SNAPCRAFT_PART_INSTALL/bin/k9s
-      "${CRAFT_PART_INSTALL}/bin/k9s" completion bash > "${CRAFT_PART_INSTALL}/k9s-completion.bash"
-    build-packages:
-      - build-essential
-    build-snaps:
-      - go
+      install -D "$SNAPCRAFT_PART_BUILD/execs/k9ish" "$SNAPCRAFT_PART_INSTALL/bin/k9ish"
+      "$SNAPCRAFT_PART_INSTALL/bin/k9ish" completion bash > "$SNAPCRAFT_PART_INSTALL/k9ish-completion.bash"
+    build-packages: [build-essential]
+    build-snaps: [go]
